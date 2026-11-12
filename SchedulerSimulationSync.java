@@ -4,9 +4,8 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Random;
-import java.util.concurrent.locks.ReentrantLock; // ✅ استيراد القفل الخاص بحماية طابور الانتظار (متطلب Feature 1)
-// TODO (Feature 2): import java.util.concurrent.locks.ReentrantLock;
-// TODO (Feature 3):                 import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.ReentrantLock; 
+// TODO (Feature 3): import java.util.concurrent.Semaphore;
 
 // ANSI Color Codes for enhanced terminal output (same as Assignment 1)
 class Colors {
@@ -43,7 +42,7 @@ class Config {
     static final int TIME_SCALE = 5;
 }
 
-// ⚠️ SHARED STATISTICS ⚠️
+// ⚠️ SHARED STATISTICS (Feature 2 Protected) ⚠️
 class SharedStats {
     static int totalProcesses = 0;            
     static int totalCPUs = 0;                     
@@ -52,22 +51,49 @@ class SharedStats {
     static long totalServiceTime = 0;         
     static final java.util.concurrent.atomic.AtomicInteger busyWaitPolls = new java.util.concurrent.atomic.AtomicInteger(0);
 
+    /**
+     * =========================================================================
+     * 📌 FEATURE 2: Mutual Exclusion for Shared Statistics
+     * -------------------------------------------------------------------------
+     * Description:
+     * - Defined `statsLock` to ensure synchronization and protect shared statistics.
+     * - Prevents race conditions when multiple CPUs update completed processes, 
+     *   context switches, and total service time simultaneously.
+     * =========================================================================
+     */
+    private static final ReentrantLock statsLock = new ReentrantLock();
+
     public static void incrementContextSwitch() {
-        int tmp = contextSwitchCount;        
-        RaceWindow.pause();                      
-        contextSwitchCount = tmp + 1;        
+        statsLock.lock(); // Acquire lock before modifying context switch counter
+        try {
+            int tmp = contextSwitchCount;        
+            RaceWindow.pause();                      
+            contextSwitchCount = tmp + 1;        
+        } finally {
+            statsLock.unlock(); // Always release lock safely
+        }
     }
 
     public static void incrementCompletedProcess() {
-        int tmp = completedProcessCount;
-        RaceWindow.pause();
-        completedProcessCount = tmp + 1;
+        statsLock.lock(); // Acquire lock before modifying completed process counter
+        try {
+            int tmp = completedProcessCount;
+            RaceWindow.pause();
+            completedProcessCount = tmp + 1;
+        } finally {
+            statsLock.unlock(); // Release lock
+        }
     }
 
     public static void addServiceTime(int ms) {
-        long tmp = totalServiceTime;
-        RaceWindow.pause();
-        totalServiceTime = tmp + ms;
+        statsLock.lock(); // Acquire lock before updating total service time
+        try {
+            long tmp = totalServiceTime;
+            RaceWindow.pause();
+            totalServiceTime = tmp + ms;
+        } finally {
+            statsLock.unlock(); // Release lock
+        }
     }
 
     public static int getCompletedProcessCount() {
@@ -92,17 +118,15 @@ class ReadyQueue {
      * =========================================================================
      * 📌 FEATURE 1: Mutual Exclusion for the Ready Queue
      * -------------------------------------------------------------------------
-     * الوظيفة والهدف للشرح:
-     * - تم تعريف `ReentrantLock` لضمان أن عملية واحدة فقط من المعالجات (CPUs) 
-     *   يمكنها الوصول إلى طابور الانتظار (`list` و `map`) في نفس الوقت.
-     * - يمنع حدوث Race Condition وتضارب البيانات عند الإضافة أو السحب.
+     * Description:
+     * - Declared a ReentrantLock to ensure only one CPU can access 
+     *   the ready queue (`list` and `map`) at a time, avoiding race conditions.
      * =========================================================================
      */
     private final ReentrantLock queueLock = new ReentrantLock();
 
-    // إضافة عملية جديدة للطابور مع حمايتها بالقفل
     public void add(Process process) {
-        queueLock.lock(); // قفل الطابور قبل التعديل
+        queueLock.lock(); 
         try {
             Thread thread = new Thread(process);
             list.add(thread);
@@ -113,27 +137,25 @@ class ReadyQueue {
                     " │ Remaining: " + Colors.YELLOW + process.getRemainingTime() + "ms" + Colors.RESET +
                     " of " + process.getBurstTime() + "ms");
         } finally {
-            queueLock.unlock(); // التأكد من تحرير القفل دائماً
+            queueLock.unlock(); 
         }
     }
 
-    // سحب العملية من رأس الطابور مع حمايتها بالقفل
     public Thread poll() {
-        queueLock.lock(); // قفل الطابور قبل القراءة والحذف
+        queueLock.lock(); 
         try {
             if (list.isEmpty()) {
                 return null;
             }
-            Thread head = list.getFirst();      
-            RaceWindow.pause();                     
-            list.removeFirst();                     
+            Thread head = list.getFirst();       
+            RaceWindow.pause();                      
+            list.removeFirst();                      
             return head;
         } finally {
-            queueLock.unlock(); // تحرير القفل
+            queueLock.unlock(); 
         }
     }
 
-    // استعلام عن العملية المرتبطة بالـ Thread مع حماية القفل
     public Process processOf(Thread thread) {
         queueLock.lock();
         try {
@@ -143,7 +165,6 @@ class ReadyQueue {
         }
     }
 
-    // أخذ لقطة (Snapshot) لحالة الطابور الحالية مع حماية القفل
     public String snapshot() {
         queueLock.lock();
         try {
@@ -162,11 +183,11 @@ class ReadyQueue {
 // Class representing a process
 class Process implements Runnable {
     private final String name;
-    private final int burstTime;             
-    private final int timeQuantum;           
+    private final int burstTime;              
+    private final int timeQuantum;            
     private int remainingTime;
-    private final int priority;              
-    private final long creationTime;         
+    private final int priority;               
+    private final long creationTime;          
     private long completionTime = 0;
     private volatile int cpuId = 0;         
 
@@ -278,7 +299,7 @@ class CpuWorker extends Thread {
             process.setCpuId(cpuId);
             thread.start();                     
             try {
-                thread.join();                   
+                thread.join();                 
             } catch (InterruptedException e) {
                 System.out.println("CPU-" + cpuId + " interrupted.");
             }
@@ -297,7 +318,7 @@ public class SchedulerSimulationSync {
         Random random = new Random(studentID);
 
         int timeQuantum = 2000 + random.nextInt(4) * 1000;        
-        int numProcesses = 10 + random.nextInt(11);               
+        int numProcesses = 10 + random.nextInt(11);                 
         int[] burstTimes = new int[numProcesses];
         for (int i = 0; i < numProcesses; i++) {
             burstTimes[i] = timeQuantum / 2 + random.nextInt(2 * timeQuantum + 1);
@@ -320,7 +341,7 @@ public class SchedulerSimulationSync {
 
         System.out.println("\n" + Colors.BOLD + Colors.GREEN + "╔════════════════════════════════════════════════════════════════════════════════╗" + Colors.RESET);
         System.out.println(Colors.BOLD + Colors.GREEN + "║" + Colors.RESET + Colors.BG_GREEN + Colors.WHITE + Colors.BOLD +
-                "                     ▶  " + numCPUs + " CPUs STARTING (CONCURRENT SCHEDULER)  ◀                     " +
+                "                    ▶ " + numCPUs + " CPUs STARTING (CONCURRENT SCHEDULER)  ◀                    " +
                 Colors.RESET + Colors.BOLD + Colors.GREEN + "║" + Colors.RESET);
         System.out.println(Colors.BOLD + Colors.GREEN + "╚════════════════════════════════════════════════════════════════════════════════╝" + Colors.RESET + "\n");
 
@@ -367,13 +388,13 @@ public class SchedulerSimulationSync {
         String line = "═".repeat(87);
         System.out.println("\n" + Colors.BOLD + Colors.BRIGHT_CYAN + "╔" + line + "╗" + Colors.RESET);
         System.out.println(Colors.BOLD + Colors.BRIGHT_CYAN + "║" + Colors.RESET + Colors.BG_BLUE + Colors.BRIGHT_WHITE + Colors.BOLD +
-                "            CONCURRENT CPU SCHEDULER SIMULATION (ASSIGNMENT 3 - SYNCHRONIZATION)           " +
+                "            CONCURRENT CPU SCHEDULER SIMULATION (ASSIGNMENT 3 - SYNCHRONIZATION)            " +
                 Colors.RESET + Colors.BOLD + Colors.BRIGHT_CYAN + "║" + Colors.RESET);
         System.out.println(Colors.BOLD + Colors.BRIGHT_CYAN + "╠" + line + "╣" + Colors.RESET);
-        printHeaderRow("  Processes:        ", String.valueOf(numProcesses));
+        printHeaderRow("  Processes:         ", String.valueOf(numProcesses));
         printHeaderRow("  Time Quantum:    ", timeQuantum + "ms (nominal, simulated " + Config.TIME_SCALE + "x faster)");
-        printHeaderRow("  CPUs:             ", String.valueOf(numCPUs));
-        printHeaderRow("  Student ID:       ", String.valueOf(studentID));
+        printHeaderRow("  CPUs:              ", String.valueOf(numCPUs));
+        printHeaderRow("  Student ID:        ", String.valueOf(studentID));
         System.out.println(Colors.BOLD + Colors.BRIGHT_CYAN + "╚" + line + "╝" + Colors.RESET + "\n");
     }
 
