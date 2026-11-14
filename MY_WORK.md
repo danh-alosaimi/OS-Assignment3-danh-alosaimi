@@ -132,95 +132,83 @@
 
 ## Your Development Log
 
-### Entry 1 - [Date and Time]
-**What I did**:
+### Entry 1 - [November 11, 2026, 6:12 PM]
+**What I did**:Forked the repository, set my student ID, and ran the original starter.
 
-**Details**:
+**Details**:Forked and renamed the repository to OS-Assignment3-danh-alosaimi, updated line 304 in SchedulerSimulationSync.java to my student ID (445052389), and ran the starter code. Observed that multiple CPU workers picked the same process simultaneously, resulting in thread state exceptions and watchdog termination
 
-**Challenges**:
+**Challenges**:Understanding why multiple threads conflicted on the ready queue without locks.
 
-**Solution**:
+**Solution**:Examined ReadyQueue.poll() and recognized how the unprotected gap and RaceWindow.pause() caused race conditions.
 
-**Time spent**:
-
----
-
-### Entry 2 - [Date and Time]
-**What I did**:
-
-**Details**:
-
-**Challenges**:
-
-**Solution**:
-
-**Time spent**:
+**Time spent**:30 minutes
 
 ---
 
-### Entry 3 - [Date and Time]
-**What I did**:
+### Entry 2 - [November 12, 2026, 11:47 AM]
+**What I did**:Implemented Feature 1 (Mutex lock on the ready queue).
 
-**Details**:
+**Details**:Added a ReentrantLock named queueLock inside the ReadyQueue class. Wrapped the critical sections of add() and poll() methods inside lock() and try-finally unlock() blocks to ensure mutual exclusion.
 
-**Challenges**:
+**Challenges**:Ensuring that no thread bypassed the lock when modifying the underlying LinkedList and HashMap.
 
-**Solution**:
+**Solution**:Double-checked every method in ReadyQueue (including processOf and snapshot) to make sure they all acquire the queueLock.
 
-**Time spent**:
-
----
-
-### Entry 4 - [Date and Time]
-**What I did**:
-
-**Details**:
-
-**Challenges**:
-
-**Solution**:
-
-**Time spent**:
+**Time spent**:45 minutes
 
 ---
 
-### Entry 5 - [Date and Time]
-**What I did**:
+### Entry 3 -[November 12, 2026, 11:47 AM]
+**What I did**:Implemented Feature 2 (Mutex lock on shared statistics).
 
-**Details**:
+**Details**:Protected the SharedStats class variables (contextSwitchCount, completedProcessCount, totalServiceTime) by introducing a statsLock (ReentrantLock). Wrapped counter increments and service time updates in try-finally lock blocks.
 
-**Challenges**:
+**Challenges**:Preventing lost updates during concurrent read-modify-write cycles across multiple CPU threads.
 
-**Solution**:
+**Solution**:Used fine-grained locking where statsLock specifically guards the statistical counters independently from the queue lock.
 
-**Time spent**:
+**Time spent**:1 hour
+
+---
+
+### Entry 4 - [November 13, 2026, 1:39 AM]
+**What I did**:Implemented Feature 3 (Replacing busy-waiting with a counting semaphore).
+
+**Details**:Introduced a Semaphore availableProcesses initialized to 0 in ReadyQueue. Updated add() to release() tokens, and CpuWorker to wait using waitForProcess() (acquire()) instead of busy polling. Added releaseAllCPUs() for clean shutdown.
+
+**Challenges**:Figuring out how to prevent CPU threads from remaining permanently blocked when all processes finish execution.
+
+**Solution**:Invoked releaseAllCPUs(totalCPUs) upon completion of the final process to wake up any waiting worker threads
+
+**Time spent**:1.5 hours
 
 ---
 
-### Entry 6 - [Optional - Date and Time]
-**What I did**:
+### Entry 5 - [November 13, 2026, 2:00 AM]
+**What I did**:Final verification and testing of the simulation
 
-**Details**:
+**Details**:Executed the completed SchedulerSimulationSync program and verified that all test verification checks passed successfully with zero busy-waiting polls.
 
-**Challenges**:
+**Challenges**:Ensuring stable terminal output across multiple execution runs.
 
-**Solution**:
+**Solution**:Conducted repeated test runs to confirm consistent output based on student ID seed.
 
-**Time spent**:
+**Time spent**:30 minutes
 
 ---
+
 
 ## Development Log Summary
 
 > 💡 **TIP:** Fill this in **last**, after all entries are written.
 
-**Total time spent on assignment**: [X hours]
+**Total time spent on assignment**: [4.5 hours]
 
-**Most challenging part**:
+**Most challenging part**:Properly releasing the semaphore threads at the exact termination phase to prevent deadlocks.
 
-**Most interesting learning**:
+**Most interesting learning**:Witnessing how synchronization primitives like ReentrantLock and Semaphore eliminate subtle race conditions.
 
-**What I would do differently next time**:
+**What I would do differently next time**:Write unit tests earlier in the development cycle to isolate multi-threading bugs faster.
 
 ---
 
@@ -240,7 +228,7 @@
 
 **Your Answer:** *(5-7 sentences)*
 
-[Write your answer here.]
+[Through this assignment, I learned that concurrent programming without synchronization introduces severe non-deterministic bugs like race conditions and lost updates. I experienced firsthand how multiple threads executing read-modify-write operations on shared data structures corrupt state unless guarded by mutual exclusion mechanisms. Implementing ReentrantLock taught me the critical importance of protecting critical sections and always releasing locks inside try-finally blocks. Furthermore, replacing busy-waiting with a counting semaphore showed me how efficient OS-level thread blocking works without wasting CPU cycles. Ultimately, synchronization is essential for preserving data consistency, thread safety, and predictable execution in multi-core operating systems]
 
 ## Question 2: What was the most challenging part of this assignment?
 
@@ -248,7 +236,7 @@
 
 **Your Answer:** *(5-7 sentences)*
 
-[Write your answer here.]
+[The most challenging part of this assignment was configuring Feature 3 to correctly handle the lifecycle of CPU worker threads using the counting semaphore. Initially, when all processes completed their execution, some CPU threads remained blocked inside the acquire() method because they were waiting for new processes that would never arrive. This caused the simulation watchdog to trigger a timeout failure. Debugging this required a deep understanding of semaphore token counts and determining the exact moment to release all waiting threads. Ensuring that cleanup happened gracefully without leaving orphan threads took careful code restructuring in the CpuWorker and ReadyQueue classes.]
 
 ## Question 3: How did you overcome the challenges you faced?
 
@@ -256,7 +244,7 @@
 
 **Your Answer:** *(5-7 sentences)*
 
-[Write your answer here.]
+[I overcame these challenges by systematically breaking down the problem, reviewing course lecture materials on synchronization, and adding diagnostic print statements to trace thread execution flows. Whenever a deadlock or watchdog timeout occurred, I inspected the state of the ready queue and semaphore token availability at that specific timestamp. Re-reading the assignment instructions and analyzing the starter code architecture helped clarify how producers and consumers interact in this scheduler model. Additionally, testing incremental code modifications after each fix allowed me to verify correctness step by step until all verification checks passed successfully.]
 
 ## Question 4: Where can synchronization concepts be applied in real-world applications?
 
@@ -264,19 +252,19 @@
 
 **Your Answer:** *(5-7 sentences)*
 
-[Write your answer here.]
+[Synchronization concepts are widely applied in real-world software systems, such as database management systems, banking applications, and online ticket booking platforms. For instance, in a banking app processing simultaneous money transfers from the same account, mutual exclusion locks prevent race conditions that could lead to incorrect account balances. Similarly, airline reservation systems use locks and semaphores to ensure two users cannot book the exact same seat concurrently. Print spoolers and task schedulers in modern operating systems also rely heavily on queues and semaphores to manage shared hardware resources safely and efficiently.]
 
 ### Optional: What would you like to learn more about?
 
-[Any topics related to synchronization or operating systems that you're curious about?]
+[I am curious about advanced deadlock avoidance algorithms and hardware-level memory barriers used in multi-core processors.]
 
 ### Optional: How confident do you feel about synchronization concepts now?
 
-[Beginner / Intermediate / Confident. What do you understand well? What needs more practice?]
+[Confident. I understand mutual exclusion, critical sections, mutex locks, and semaphores well through practical implementation.]
 
 ### Optional: Feedback on the assignment
 
-[Any comments? Was it helpful? Too easy or hard? Suggestions?]
+[This assignment was extremely engaging and bridged theory with practical Java concurrent programming effectively.]
 
 ---
 
@@ -298,20 +286,26 @@
 
 **Your Answer:** *(3-5 sentences)*
 
-[Write your answer here.]
+[Running the uncorrected starter code produced a race condition where multiple CPUs polled the same process from the ready queue, leading to invalid execution states and watchdog termination. Specifically, when CPU-1 and CPU-2 read the head of the list concurrently before removal, both retrieved the same process thread. One update or execution stream would overwrite or disrupt the other, violating mutual exclusion on shared statistics and queues. This bug occurs on real multi-core machines because threads execute asynchronously across separate cores, interleaving machine instructions arbitrarily during read-modify-write steps, making such transient bugs extremely difficult to reproduce and debug.]
 
 Verification block of the **original starter**:
 ```
-[Paste the verification block (or the exception/watchdog message) of the starter here]
+[```text
+⛔ WATCHDOG: the simulation did not finish (15 s). A process was lost, or a CPU is blocked forever, or the 'completed' counter lost an update.]
 ```
 
 Verification block of **my final version**:
 ```
-[Paste the verification block of your final version here (all lines ✔)]
+[═══ VERIFICATION (expected values are computed from YOUR seed) ═══
+  Context switches (quanta executed)     expected 20        observed 20       ✔
+  Completed processes                    expected 11        observed 11       ✔
+  Total service time (ms)                expected 60145     observed 60145    ✔
+  Busy-waiting polls (must be 0)         expected 0         observed 0        ✔
+  ✔ All shared values are consistent.]
 ```
 
 **Explanation of the timeline:**
-[Explain the lost update step by step.]
+[If CPU-1 reads contextSwitchCount = 12 and concurrently CPU-2 also reads contextSwitchCount = 12, CPU-1 pauses and writes 13, and then CPU-2 pauses and writes 13, the total increments performed should have been 2, but only 1 is recorded, resulting in a lost update.]
 
 ## Question 2: Critical Sections and Lock Granularity
 
@@ -321,12 +315,12 @@ Verification block of **my final version**:
 
 **Your Answer:** *(3-5 sentences)*
 
-[Write your answer here.]
+[I protected the ready queue operations using queueLock and the shared statistics counters using statsLock. For statistics, I chose fine-grained locking (one lock for the statistics block) rather than separate locks per variable to prevent excessive lock management overhead while still maintaining isolation from the queue operations. The ready queue is protected by a separate lock (queueLock) because queue modifications are frequent and independent of statistical updates, which maximizes concurrency. Mutual exclusion is guaranteed through lock() and try-finally unlock() blocks. However, because ReentrantLock is non-fair by default, threads acquire locks in a barging manner, which implies that thread starvation is technically possible under heavy contention.]
 
 | Critical section (variable / method) | Lock used | Why it needs protection |
 |---|---|---|
-| [e.g., `ReadyQueue.poll()`] | [lock name] | [reason] |
-| [...] | [...] | [...] |
+| [ReadyQueue.add() / poll()] | [queueLock] | [Prevents concurrent corruption of the underlying LinkedList and HashMap.] |
+| [SharedStats counter increments] | [statsLock] | [Prevents lost updates during concurrent multi-threaded modifications.] |
 
 ## Question 3: Busy Waiting vs Semaphore
 
@@ -336,7 +330,7 @@ Verification block of **my final version**:
 
 **Your Answer:** *(3-5 sentences)*
 
-[Write your answer here.]
+[In the starter code, CPU workers constantly polled the empty ready queue in a tight while loop, resulting in excessive CPU utilization and thousands of wasted busy-waiting polls. The semaphore availableProcesses represents the count of available processes ready for execution in the queue. Its initial value is 0 because no processes are available before startup. Right after the numProcesses initial add() calls in main, its value equals numProcesses. The last CPU calls release(totalCPUs) at the end to unblock any sleeping CPU workers waiting on acquire(), ensuring they can exit their loops cleanly instead of hanging forever.]
 
 ## Question 4: Classical Problems and Deadlock
 
@@ -347,24 +341,24 @@ Verification block of **my final version**:
 **Your Answer:** *(3-5 sentences)*
 
 **Classical problem and roles**:
-[Name the problem; who is the producer, who is the consumer?]
+[This simulation models the Producer-Consumer Problem (Bounded-Buffer), where the `main` thread (initially) and the CPU worker threads (when re-enqueuing processes) act as producers, while the CPU worker threads act as consumers when polling processes from the ready queue.]
 
 **Semaphores for a bounded queue (name and initial value)**:
-[Name the three semaphores and their initial values.]
+[For a bounded ready queue of capacity $K$, the three necessary semaphores are `mutex` (initial value 1), `empty` (initial value $K$), and `full` (initial value 0).]
 
 **Deadlock scenario and prevention**:
-[Describe the scenario and the necessary condition you would break.]
+[A deadlock occurs if a producer acquires `mutex` before waiting on `empty` when the queue is full, blocking consumers from acquiring `mutex` to free a slot. To prevent this deadlock, we break the Hold and Wait condition by ensuring threads acquire `empty` or `full` before acquiring `mutex` (or by releasing `mutex` before blocking).]
 
 ## Summary
 
 **Key concepts I understood through these questions:**
-1.
-2.
-3.
+1.Mutual exclusion and race condition prevention using locks (`ReentrantLock`).
+2.Lock granularity trade-offs between concurrency and overhead.
+3.Synchronization using semaphores and preventing deadlock by breaking Hold and Wait.
 
 **Concepts I need to study more:**
-1.
-2.
+1.Advanced deadlock recovery strategies.
+2.Fine-grained optimization under high thread contention.
 
 ---
 
