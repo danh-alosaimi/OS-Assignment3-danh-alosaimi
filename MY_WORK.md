@@ -145,7 +145,7 @@
 
 ---
 
-### Entry 2 - [November 12, 2026, 11:47 AM]
+### Entry 2 - [November 11, 2026, 7:11 PM]
 **What I did**:Implemented Feature 1 (Mutex lock on the ready queue).
 
 **Details**:Added a ReentrantLock named queueLock inside the ReadyQueue class. Wrapped the critical sections of add() and poll() methods inside lock() and try-finally unlock() blocks to ensure mutual exclusion.
